@@ -10,8 +10,12 @@ export const SocketProvider = ({ children }) => {
   const [incomingEmergency, setIncomingEmergency] = useState(null);
 
   useEffect(() => {
-    // Connect directly to backend server port 5000
-    const backendUrl = 'http://localhost:5000';
+    // Dynamic backend URL for local development and cloud production (Render / Vercel)
+    const backendUrl =
+      import.meta.env.VITE_SOCKET_URL ||
+      (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') : '') ||
+      'http://localhost:5000';
+
     const newSocket = io(backendUrl, {
       transports: ['websocket', 'polling'],
       reconnection: true,
