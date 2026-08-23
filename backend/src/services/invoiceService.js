@@ -1,0 +1,139 @@
+import PDFDocument from "pdfkit";
+import fs from "fs";
+import path from "path";
+
+const invoiceDir = path.resolve("uploads", "invoices");
+if (!fs.existsSync(invoiceDir)) {
+  fs.mkdirSync(invoiceDir, { recursive: true });
+}
+
+export const generateInvoicePDF = async (booking, payment) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const invoiceNumber = `INV-${new Date().getFullYear()}-${String(booking._id).slice(-6).toUpperCase()}`;
+      const filePath = path.join(invoiceDir, `${invoiceNumber}.pdf`);
+      const relativeUrl = `/uploads/invoices/${invoiceNumber}.pdf`;
+
+      const doc = new PDFDocument({ margin: 50 });
+      const stream = fs.createWriteStream(filePath);
+      doc.pipe(stream);
+
+      // Header
+      doc
+        .fontSize(22)
+        .fillColor("#059669")
+        .text("COOPERATIVE GIG SERVICES PLATFORM", { align: "center" })
+        .moveDown(0.2);
+
+      doc
+        .fontSize(10)
+        .fillColor("#6B7280")
+        .text("Empowering Labour Cooperative Federations & Skilled Workers", { align: "center" })
+        .moveDown(1.5);
+
+      doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1);
+
+      // Invoice Info
+      doc
+        .fontSize(12)
+        .fillColor("#111827")
+        .text(`INVOICE: ${invoiceNumber}`, { bold: true })
+        .fontSize(10)
+        .fillColor("#4B5563")
+        .text(`Date: ${new Date().toLocaleDateString()}`)
+        .text(`Payment Status: ${booking.paymentStatus.toUpperCase()}`)
+        .text(`Payment Method: ${booking.paymentMethod.toUpperCase()}`)
+        .moveDown(1);
+
+      // Customer and Worker Info columns
+      const topY = doc.y;
+      doc
+        .fontSize(11)
+        .fillColor("#111827")
+        .text("Billed To (Customer):", 50, topY, { bold: true })
+        .fontSize(10)
+        .fillColor("#4B5563")
+        .text(booking.customerId?.fullName || "Valued Customer", 50, topY + 18)
+        .text(`Phone: ${booking.customerId?.phone || "N/A"}`, 50, topY + 32)
+        .text(`Address: ${booking.address || "N/A"}`, 50, topY + 46, { width: 220 });
+
+      doc
+        .fontSize(11)
+        .fillColor("#111827")
+        .text("Service Provider (Worker):", 320, topY, { bold: true })
+        .fontSize(10)
+        .fillColor("#4B5563")
+        .text(booking.workerId?.userId?.fullName || "Cooperative Worker", 320, topY + 18)
+        .text(`Cooperative: ${booking.cooperativeId?.name || "Labour Co-op"}`, 320, topY + 32)
+        .text(`Service Type: ${booking.serviceId?.name || "Skilled Gig Service"}`, 320, topY + 46);
+
+      doc.y = topY + 100;
+      doc.moveDown(1);
+
+      // Table Header
+      doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(0.5);
+      
+      const tableTop = doc.y;
+      doc
+        .fontSize(10)
+        .fillColor("#111827")
+        .text("Description", 50, tableTop, { bold: true })
+        .text("Category", 260, tableTop, { bold: true })
+        .text("Mode", 380, tableTop, { bold: true })
+        .text("Amount (INR)", 470, tableTop, { align: "right", bold: true });
+
+      doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y + 16).lineTo(550, doc.y + 16).stroke();
+
+      // Table Row
+      const rowY = doc.y + 25;
+      doc
+        .fontSize(10)
+        .fillColor("#374151")
+        .text(booking.serviceId?.name || "Skilled Service", 50, rowY)
+        .text(booking.serviceId?.category || "Standard", 260, rowY)
+        .text(booking.isEmergency ? "Emergency 'Need Now'" : "Standard Scheduled", 380, rowY)
+        .text(`₹${booking.totalAmount.toFixed(2)}`, 470, rowY, { align: "right" });
+
+      doc.y = rowY + 30;
+      doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1);
+
+      // Breakdown Box
+      const breakY = doc.y;
+      doc
+        .fontSize(9)
+        .fillColor("#059669")
+        .text("Fair Cooperative Economics Distribution:", 50, breakY, { bold: true })
+        .fillColor("#4B5563")
+        .text(`• Worker Direct Earnings: ₹${booking.workerEarnings.toFixed(2)}`, 50, breakY + 15)
+        .text(`• Cooperative Welfare & Ops: ₹${booking.coopFee.toFixed(2)}`, 50, breakY + 28)
+        .text(`• Federation Platform Fee: ₹${booking.platformFee.toFixed(2)}`, 50, breakY + 41);
+
+      doc
+        .fontSize(12)
+        .fillColor("#111827")
+        .text(`Total Paid: ₹${booking.totalAmount.toFixed(2)}`, 350, breakY + 20, { align: "right", bold: true });
+
+      doc.y = breakY + 80;
+      doc.strokeColor("#E5E7EB").lineWidth(1).moveTo(50, doc.y).lineTo(550, doc.y).stroke().moveDown(1);
+
+      // Footer
+      doc
+        .fontSize(9)
+        .fillColor("#9CA3AF")
+        .text("Thank you for choosing Cooperative Gig Services. You are supporting fair worker wages and dignity of labour.", { align: "center" })
+        .text("A digitally certified receipt generated by Labour Cooperative Federation", { align: "center" });
+
+      doc.end();
+
+      stream.on("finish", () => {
+        resolve({ invoiceNumber, filePath, relativeUrl });
+      });
+
+      stream.on("error", (err) => {
+        reject(err);
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
