@@ -58,10 +58,21 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/federation", federationRoutes);
 app.use("/api/notifications", notificationRoutes);
 
+// Root API status endpoint
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    service: "ServiceSetu Backend API",
+    status: "online",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     status: "ok",
+    service: "ServiceSetu API",
     message: "Cooperative Gig Services API is running smoothly",
     timestamp: new Date().toISOString(),
   });
